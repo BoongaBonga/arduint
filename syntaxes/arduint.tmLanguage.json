@@ -1,0 +1,62 @@
+{
+  "scopeName": "source.arduint",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#functions"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.arduint",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.arduint",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "strings": {
+      "name": "string.quoted.double.arduint",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "name": "constant.character.escape.arduint",
+          "match": "\\\\."
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.arduint",
+          "match": "\\b(if|else|while|for|return|function|loop)\\b"
+        }
+      ]
+    },
+    "numbers": {
+      "name": "constant.numeric.arduint",
+      "match": "\\b\\d+(\\.\\d+)?\\b"
+    },
+    "functions": {
+      "name": "support.function.arduint",
+      "match": "\\b(setPin|readPin|delay|micros)\\b"
+    }
+  }
+}
