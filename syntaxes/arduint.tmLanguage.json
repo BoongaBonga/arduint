@@ -46,17 +46,21 @@
       "patterns": [
         {
           "name": "keyword.control.arduint",
-          "match": "\\b(if|else|while|for|return|function|loop)\\b"
+          "match": "\\b([Aa]nd|[Nn]ot|[Oo]r|[Ii]f|[Ee]lse|[Ww]hile|[Ff]or|[Rr]eturn|[Ff]unction|[Ll]oop|[Dd]efine|[Aa]s|[Tt]o)\\b"
+        },
+        {
+          "name": "constant.language.boolean.arduint",
+          "match": "\\b([Tt]rue|[Ff]alse)\\b"
         }
       ]
     },
     "numbers": {
       "name": "constant.numeric.arduint",
-      "match": "\\b\\d+(\\.\\d+)?\\b"
+      "match": "\\b\\d+(\\.\\d+)?(ms|\\u00B5s|micros|s|h|m)?\\b"
     },
     "functions": {
       "name": "support.function.arduint",
-      "match": "\\b(setPin|readPin|delay|micros)\\b"
+      "match": "\\b([Ss]etPin|[Rr]eadPin|[Dd]elayMicros|[Dd]elay|[Pp]rint)\\b"
     }
   }
 }
