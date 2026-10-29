@@ -26,13 +26,11 @@ export function activate(context: vscode.ExtensionContext) {
                     const suggestions: vscode.CompletionItem[] = [];
 
                     const keywords = [
-                        'function',
-                        'if',
-                        'else',
-                        'while',
-                        'for',
-                        'return',
-						'loop'
+                        'function', 'if', 'else', 'while',
+                        'for', 'return', 'loop',
+                        'false', 'true', 'micros', 'µs', 
+                        'ms', 's', 'm', 'h', 'as', 'to',
+                        'and', 'not', 'or',  
                     ];
 
                     for (const keyword of keywords) {
@@ -48,23 +46,38 @@ export function activate(context: vscode.ExtensionContext) {
                     const functions = [
                         {
                             name: 'setPin',
-                            args: 'pin, value',
-                            detail: 'Set a digital output pin'
+                            args: ' ${1:pin} to ${2:value}',
+                            detail: 'Set any output pin'
                         },
                         {
                             name: 'readPin',
-                            args: 'pin',
-                            detail: 'Read a digital input pin'
+                            args: ' ${1:pin}',
+                            detail: 'Read any input pin'
                         },
                         {
                             name: 'delay',
-                            args: 'milliseconds',
+                            args: ' ${1:ms}',
                             detail: 'Pause execution'
                         },
                         {
-                            name: 'micros',
-                            args: '',
-                            detail: 'Get elapsed microseconds'
+                            name: 'delayMicros',
+                            args: ' ${1:µs}',
+                            detail: 'Pause execution'
+                        },
+                        {
+                            name: 'getTime',
+                            args: '()',
+                            detail: 'Get elapsed time in ms'
+                        },
+                        {
+                            name: 'print',
+                            args: ' ',
+                            detail: 'Print to console'
+                        },
+                        {
+                            name: 'define',
+                            args: ' ${1:name} as ${2:value}',
+                            detail: 'Assign a name to a value'
                         }
                     ];
 
@@ -76,7 +89,7 @@ export function activate(context: vscode.ExtensionContext) {
 
                         item.detail = fn.detail;
                         item.insertText = new vscode.SnippetString(
-                            `${fn.name}(${fn.args}$0)`
+                            `${fn.name}${fn.args}$0`
                         );
 
                         suggestions.push(item);
