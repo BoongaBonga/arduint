@@ -31,8 +31,15 @@
     ],
     "commands": [
       {
-        "command": "arduint.helloWorld",
-        "title": "Hello World"
+        "command": "arduint.runLexer",
+        "title": "Arduino Interpreter: Run Lexer & Print Tokens"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "arduint.runLexer",
+        "key": "ctrl+alt+l",
+        "when": "editorTextFocus"
       }
     ]
   },

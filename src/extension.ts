@@ -6,7 +6,7 @@ let diagnosticCollection: vscode.DiagnosticCollection;
 
 export function activate(context: vscode.ExtensionContext) {
     //Create a diagnosticsCollection for arduint
-    diagnosticCollection = vscode.languages.createDiagnosticCollection('arduino-interpreter');
+    diagnosticCollection = vscode.languages.createDiagnosticCollection('Arduint');
     context.subscriptions.push(diagnosticCollection);
 
     //Trigger lexer check on save
@@ -18,6 +18,45 @@ export function activate(context: vscode.ExtensionContext) {
         })
     );
 
+    // Make a 'print lexer output' command
+    const outputChannel = vscode.window.createOutputChannel('Arduint');
+    context.subscriptions.push(outputChannel);
+
+    let disposable = vscode.commands.registerCommand('arduint.runLexer', ()=>{
+        const editor = vscode.window.activeTextEditor;
+        if(!editor){
+            vscode.window.showErrorMessage('No active file open to run through the lexer.');
+            return;
+        }
+
+        const document = editor.document;
+        document.save(); //Save file so Lexer reads last changes
+
+        const lexerPath = context.asAbsolutePath(path.join('bin', 'lexer.exe'));
+        const filePath = document.uri.fsPath;
+
+        outputChannel.clear();
+        outputChannel.show(true);
+        outputChannel.appendLine(`Running lexer on: ${path.basename(filePath)}...\n`);
+
+        const child = cp.spawn(lexerPath, [filePath]);
+
+        child.stdout.on('data', (data)=>{
+            outputChannel.append(data.toString());
+        });
+
+        child.stderr.on('data', (data) => {
+            outputChannel.append(`[ERROR] ${data.toString()}`);
+        });
+
+        child.on('close', (code) => {
+            outputChannel.appendLine(`\nLexer process exited with code ${code}`);
+        });
+    });
+
+    context.subscriptions.push(disposable);
+
+    // Provide completions
     const completionProvider =
         vscode.languages.registerCompletionItemProvider(
             'arduint',
@@ -30,7 +69,7 @@ export function activate(context: vscode.ExtensionContext) {
                         'for', 'return', 'loop',
                         'false', 'true', 'micros', 'µs', 
                         'ms', 's', 'm', 'h', 'as', 'to',
-                        'and', 'not', 'or',  
+                        'and', 'not', 'or', 'equals'
                     ];
 
                     for (const keyword of keywords) {
