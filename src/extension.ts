@@ -12,8 +12,8 @@ export function activate(context: vscode.ExtensionContext) {
     //Trigger lexer check on save
     context.subscriptions.push(
         vscode.workspace.onDidSaveTextDocument(document => {
-            if(document.languageId === 'arduint'){
-                runLexerAndRepotErrors(document, context);
+            if (document.languageId === 'arduint' && document.uri.scheme === 'file') {
+                runLexerAndReportErrors(document, context);
             }
         })
     );
@@ -22,7 +22,7 @@ export function activate(context: vscode.ExtensionContext) {
     const outputChannel = vscode.window.createOutputChannel('Arduint');
     context.subscriptions.push(outputChannel);
 
-    let disposable = vscode.commands.registerCommand('arduint.runLexer', ()=>{
+    let disposable = vscode.commands.registerCommand('arduint.runLexer', async () => {
         const editor = vscode.window.activeTextEditor;
         if(!editor){
             vscode.window.showErrorMessage('No active file open to run through the lexer.');
@@ -30,16 +30,23 @@ export function activate(context: vscode.ExtensionContext) {
         }
 
         const document = editor.document;
-        document.save(); //Save file so Lexer reads last changes
+        if (document.languageId !== 'arduint' || document.uri.scheme !== 'file') {
+            vscode.window.showErrorMessage('Open a saved Arduint (.ardi) file to run through the lexer.');
+            return;
+        }
 
-        const lexerPath = context.asAbsolutePath(path.join('bin', 'lexer.exe'));
+        if (!(await document.save())) {
+            return;
+        }
+
+        const lexerPath = context.asAbsolutePath(path.join('bin', 'arduint.exe'));
         const filePath = document.uri.fsPath;
 
         outputChannel.clear();
         outputChannel.show(true);
         outputChannel.appendLine(`Running lexer on: ${path.basename(filePath)}...\n`);
 
-        const child = cp.spawn(lexerPath, [filePath]);
+        const child = cp.spawn(lexerPath, [filePath, "-ds", "-dp"]);
 
         child.stdout.on('data', (data)=>{
             outputChannel.append(data.toString());
@@ -47,6 +54,10 @@ export function activate(context: vscode.ExtensionContext) {
 
         child.stderr.on('data', (data) => {
             outputChannel.append(`[ERROR] ${data.toString()}`);
+        });
+
+        child.on('error', (error) => {
+            outputChannel.appendLine(`Failed to start lexer: ${error.message}`);
         });
 
         child.on('close', (code) => {
@@ -66,10 +77,10 @@ export function activate(context: vscode.ExtensionContext) {
 
                     const keywords = [
                         'function', 'if', 'else', 'while',
-                        'for', 'return', 'loop',
+                        'for', 'return', 'loop', 'xor',
                         'false', 'true', 'micros', 'µs', 
                         'ms', 's', 'm', 'h', 'as', 'to',
-                        'and', 'not', 'or', 'equals'
+                        'and', 'not', 'or', 'equals',
                     ];
 
                     for (const keyword of keywords) {
@@ -142,23 +153,22 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(completionProvider);
 }
 
-function runLexerAndRepotErrors(document: vscode.TextDocument, context: vscode.ExtensionContext){
-    const lexerPath = context.asAbsolutePath(path.join('bin', 'lexer.exe'));
+function runLexerAndReportErrors(document: vscode.TextDocument, context: vscode.ExtensionContext) {
+    const lexerPath = context.asAbsolutePath(path.join('bin', 'arduint.exe'));
     const filePath = document.uri.fsPath;
 
-    cp.execFile(lexerPath, [filePath], (error, stdout, stderr)=>{
+    cp.execFile(lexerPath, [filePath, "-ds", "-dp"], (error, stdout, stderr) => {
         const diagnostics: vscode.Diagnostic[] = [];
 
         if(stderr){
-            const errorRegEx = /\((\d+):(\d+)-(\d+):(\d+)\)\s*\[(Error|Warning)\]:\s*([\s\S]*?)(?=\(\d+:\d+-\d+:\d+\)|$)/g;
+            const errorRegEx = /\((\d+)-(\d+):(\d+)-(\d+)\)\s*\[(Error|Warning)\]:\s*([\s\S]*?)(?=\r?\n\(\d+-\d+:\d+-\d+\)\s*\[(?:Error|Warning)\]:|$)/g;
             let match;
 
             while ((match = errorRegEx.exec(stderr)) !== null) {
-                // Convert 1-indexed lexer positions to 0-indexed VS Code positions
                 const lineStart = Math.max(0, parseInt(match[1], 10) - 1);
                 const colStart  = Math.max(0, parseInt(match[2], 10));
                 const lineEnd   = Math.max(0, parseInt(match[3], 10) - 1);
-                const colEnd    = Math.max(0, parseInt(match[4], 10));
+                const colEnd    = Math.max(0, parseInt(match[4], 10) + 1);
                 
                 const severity  = match[5] === "Warning"
                     ? vscode.DiagnosticSeverity.Warning 
@@ -166,11 +176,22 @@ function runLexerAndRepotErrors(document: vscode.TextDocument, context: vscode.E
                     
                 const message   = match[6].trim();
 
-                const range = new vscode.Range(lineStart, colStart, lineEnd, colEnd);
+                const range = document.validateRange(
+                    new vscode.Range(lineStart, colStart, lineEnd, colEnd)
+                );
                 const diagnostic = new vscode.Diagnostic(range, message, severity);
                 diagnostics.push(diagnostic);
             }
         }
+
+        if (error && diagnostics.length === 0) {
+            diagnosticCollection.delete(document.uri);
+            vscode.window.showErrorMessage(
+                `Failed to run Arduint lexer: ${stderr || error.message}`
+            );
+            return;
+        }
+
         //Apply to file
         diagnosticCollection.set(document.uri, diagnostics);
     });
