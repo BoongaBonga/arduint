@@ -46,7 +46,7 @@
       "patterns": [
         {
           "name": "keyword.control.arduint",
-          "match": "\\b([Aa]nd|[Nn]ot|[Oo]r|[Ee]quals|[Ii]f|[Ee]lse|[Ww]hile|[Ff]or|[Rr]eturn|[Ff]unction|[Ll]oop|[Dd]efine|[Aa]s|[Tt]o)\\b"
+          "match": "\\b([Aa]nd|[Nn]ot|[Oo]r|[Ee]quals|[Ii]f|[Tt]hen|[Ee]lse|[Ww]hile|[Ff]or|[Rr]eturn|[Ff]unction|[Ll]oop|[Dd]efine|[Aa]s|[Tt]o)\\b"
         },
         {
           "name": "constant.language.boolean.arduint",

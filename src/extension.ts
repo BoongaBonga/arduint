@@ -80,7 +80,7 @@ export function activate(context: vscode.ExtensionContext) {
                         'for', 'return', 'loop', 'xor',
                         'false', 'true', 'micros', 'µs', 
                         'ms', 's', 'm', 'h', 'as', 'to',
-                        'and', 'not', 'or', 'equals',
+                        'and', 'not', 'or', 'equals', 'then',
                     ];
 
                     for (const keyword of keywords) {
@@ -161,14 +161,20 @@ function runLexerAndReportErrors(document: vscode.TextDocument, context: vscode.
         const diagnostics: vscode.Diagnostic[] = [];
 
         if(stderr){
-            const errorRegEx = /\((\d+)-(\d+):(\d+)-(\d+)\)\s*\[(Error|Warning)\]:\s*([\s\S]*?)(?=\r?\n\(\d+-\d+:\d+-\d+\)\s*\[(?:Error|Warning)\]:|$)/g;
+            const errorRegEx = /\((\d+)-(-?\d+):(\d+)-(-?\d+)\)\s*\[(Error|Warning)\]:\s*([\s\S]*?)(?=\r?\n\(\d+-(?:-?\d+):\d+-(?:-?\d+)\)\s*\[(?:Error|Warning)\]:|$)/g;
             let match;
 
             while ((match = errorRegEx.exec(stderr)) !== null) {
-                const lineStart = Math.max(0, parseInt(match[1], 10) - 1);
-                const colStart  = Math.max(0, parseInt(match[2], 10));
-                const lineEnd   = Math.max(0, parseInt(match[3], 10) - 1);
-                const colEnd    = Math.max(0, parseInt(match[4], 10) + 1);
+                let lineStart = Math.max(0, parseInt(match[1], 10) - 1);
+                let colStart  = Math.max(0, parseInt(match[2], 10));
+                let lineEnd   = Math.max(0, parseInt(match[3], 10) - 1);
+                let colEnd    = Math.max(0, parseInt(match[4], 10) + 1);
+
+                if(parseInt(match[4], 10) < 0){
+                    lineStart = lineEnd = Math.max(0, Math.min(lineEnd - 1, document.lineCount - 1));
+                    colStart = Math.max(0, document.lineAt(lineStart).text.length - 1);
+                    colEnd = document.lineAt(lineStart).text.length;
+                }
                 
                 const severity  = match[5] === "Warning"
                     ? vscode.DiagnosticSeverity.Warning 
