@@ -81,6 +81,8 @@ export function activate(context: vscode.ExtensionContext) {
                         'false', 'true', 'micros', 'µs', 
                         'ms', 's', 'm', 'h', 'as', 'to',
                         'and', 'not', 'or', 'equals', 'then',
+                        'switch', 'case', 'break', 'continue',
+                        'default', 'do'
                     ];
 
                     for (const keyword of keywords) {
@@ -116,18 +118,43 @@ export function activate(context: vscode.ExtensionContext) {
                         },
                         {
                             name: 'getTime',
-                            args: '()',
+                            args: '',
                             detail: 'Get elapsed time in ms'
                         },
                         {
                             name: 'print',
-                            args: ' ',
+                            args: ' ${1:expression}',
                             detail: 'Print to console'
                         },
                         {
                             name: 'define',
                             args: ' ${1:name} as ${2:value}',
                             detail: 'Assign a name to a value'
+                        },
+                        {
+                            name: 'for',
+                            args: '(${1:initialiser} ; ${2:condition} ; ${3:increment}) {\n${4:// Do something}\n}',
+                            detail: 'Repeat a specified amount of times.'
+                        },
+                        {
+                            name: 'while',
+                            args: ' ${1:condition} {\n${4://Do something}\n}',
+                            detail: 'Repeat while a condition is true.'
+                        },
+                        {
+                            name: 'do',
+                            args: ' {\n${1:// Do something}\n} while ${2:contition}',
+                            detail: 'Repeat at least once and then while a condition is true.'
+                        },
+                        {
+                            name: 'loop',
+                            args: ' {\n${4://Do something}\n}',
+                            detail: 'Repeat forever.'
+                        },
+                        {
+                            name: 'switch',
+                            args: ' ${1:value} {\ncase ${2:case1}: ${3://Do something}, \ndefault: \n}',
+                            detail: 'Execute code depending on a given value.'
                         }
                     ];
 
