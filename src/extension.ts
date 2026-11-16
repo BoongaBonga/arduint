@@ -3,6 +3,8 @@ import * as cp from 'child_process';
 import * as path from 'path';
 
 let diagnosticCollection: vscode.DiagnosticCollection;
+let activeProgramProcess: cp.ChildProcess | undefined;
+let programRunReserved = false;
 
 export function activate(context: vscode.ExtensionContext) {
     //Create a diagnosticsCollection for arduint
@@ -22,50 +24,29 @@ export function activate(context: vscode.ExtensionContext) {
     const outputChannel = vscode.window.createOutputChannel('Arduint');
     context.subscriptions.push(outputChannel);
 
-    let disposable = vscode.commands.registerCommand('arduint.runLexer', async () => {
-        const editor = vscode.window.activeTextEditor;
-        if(!editor){
-            vscode.window.showErrorMessage('No active file open to run through the lexer.');
-            return;
-        }
-
-        const document = editor.document;
-        if (document.languageId !== 'arduint' || document.uri.scheme !== 'file') {
-            vscode.window.showErrorMessage('Open a saved Arduint (.ardi) file to run through the lexer.');
-            return;
-        }
-
-        if (!(await document.save())) {
-            return;
-        }
-
-        const lexerPath = context.asAbsolutePath(path.join('bin', 'arduint.exe'));
-        const filePath = document.uri.fsPath;
-
-        outputChannel.clear();
-        outputChannel.show(true);
-        outputChannel.appendLine(`Running lexer on: ${path.basename(filePath)}...\n`);
-
-        const child = cp.spawn(lexerPath, [filePath, "-ds", "-dp"]);
-
-        child.stdout.on('data', (data)=>{
-            outputChannel.append(data.toString());
-        });
-
-        child.stderr.on('data', (data) => {
-            outputChannel.append(`[ERROR] ${data.toString()}`);
-        });
-
-        child.on('error', (error) => {
-            outputChannel.appendLine(`Failed to start lexer: ${error.message}`);
-        });
-
-        child.on('close', (code) => {
-            outputChannel.appendLine(`\nLexer process exited with code ${code}`);
-        });
-    });
-
+    let disposable = runArduint(context, outputChannel, 'arduint.runLexer', ["-ml", "-ds", "-dp"]);
     context.subscriptions.push(disposable);
+    let disposable2 = runArduint(context, outputChannel, 'arduint.runProgram', ["-mr"], true);
+    context.subscriptions.push(disposable2);
+    let disposable3 = runArduint(context, outputChannel, 'arduint.debugProgram', ["-mr", "-ds", "-dp", "-dv"], true);
+    context.subscriptions.push(disposable3);
+    context.subscriptions.push(
+        vscode.commands.registerCommand('arduint.stopProgram', () => {
+            if (!activeProgramProcess) {
+                return;
+            }
+
+            outputChannel.appendLine('\nStopping Arduint program...');
+            try {
+                if (!activeProgramProcess.kill('SIGINT')) {
+                    outputChannel.appendLine('Could not send an interrupt to the Arduint process.');
+                }
+            } catch (error) {
+                const message = error instanceof Error ? error.message : String(error);
+                outputChannel.appendLine(`Failed to stop Arduint program: ${message}`);
+            }
+        })
+    );
 
     // Provide completions
     const completionProvider =
@@ -144,7 +125,7 @@ export function activate(context: vscode.ExtensionContext) {
                         {
                             name: 'do',
                             args: ' {\n${1:// Do something}\n} while ${2:contition}',
-                            detail: 'Repeat at least once and then while a condition is true.'
+                            detail: 'Repeat at least once.'
                         },
                         {
                             name: 'loop',
@@ -180,11 +161,96 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(completionProvider);
 }
 
+function runArduint(context: vscode.ExtensionContext, outputChannel: vscode.OutputChannel, command: string, flags: string[], isProgram = false): vscode.Disposable {
+    return vscode.commands.registerCommand(command, async () => {
+        if (isProgram && programRunReserved) {
+            vscode.window.showInformationMessage('An Arduint program is already running. Press Ctrl+C to stop it.');
+            return;
+        }
+
+        const editor = vscode.window.activeTextEditor;
+        if(!editor){
+            vscode.window.showErrorMessage('No active file open to run through the lexer.');
+            return null;
+        }
+
+        const document = editor.document;
+        if (document.languageId !== 'arduint' || document.uri.scheme !== 'file') {
+            vscode.window.showErrorMessage('Open a saved Arduint (.ardi) file to run through the lexer.');
+            return null;
+        }
+
+        if (isProgram) {
+            programRunReserved = true;
+        }
+
+        try {
+            if (!(await document.save())) {
+                if (isProgram) {
+                    finishProgramRun();
+                }
+                return null;
+            }
+
+            const lexerPath = context.asAbsolutePath(path.join('bin', 'arduint.exe'));
+            const filePath = document.uri.fsPath;
+
+            outputChannel.clear();
+            outputChannel.show(true);
+            outputChannel.appendLine(`Running lexer on: ${path.basename(filePath)}...\n`);
+
+            const child = cp.spawn(lexerPath, [...flags, filePath]);
+            if (isProgram) {
+                activeProgramProcess = child;
+                void vscode.commands.executeCommand('setContext', 'arduint.programRunning', true);
+            }
+
+            child.stdout.on('data', (data)=>{
+                outputChannel.append(data.toString());
+            });
+
+            child.stderr.on('data', (data) => {
+                outputChannel.append(`${data.toString()}`);
+            });
+
+            child.on('error', (error) => {
+                outputChannel.appendLine(`Failed to start lexer: ${error.message}`);
+                if (isProgram) {
+                    finishProgramRun(child);
+                }
+            });
+
+            child.on('close', (code) => {
+                outputChannel.appendLine(`\nLexer process exited with code ${code}`);
+                if (isProgram) {
+                    finishProgramRun(child);
+                }
+            });
+        } catch (error) {
+            if (isProgram) {
+                finishProgramRun();
+            }
+            const message = error instanceof Error ? error.message : String(error);
+            outputChannel.appendLine(`Failed to run Arduint: ${message}`);
+        }
+    });
+}
+
+function finishProgramRun(child?: cp.ChildProcess) {
+    if (child && activeProgramProcess !== child) {
+        return;
+    }
+
+    activeProgramProcess = undefined;
+    programRunReserved = false;
+    void vscode.commands.executeCommand('setContext', 'arduint.programRunning', false);
+}
+
 function runLexerAndReportErrors(document: vscode.TextDocument, context: vscode.ExtensionContext) {
     const lexerPath = context.asAbsolutePath(path.join('bin', 'arduint.exe'));
     const filePath = document.uri.fsPath;
 
-    cp.execFile(lexerPath, [filePath, "-ds", "-dp"], (error, stdout, stderr) => {
+    cp.execFile(lexerPath, [filePath, "-ml"], (error, stdout, stderr) => {
         const diagnostics: vscode.Diagnostic[] = [];
 
         if(stderr){

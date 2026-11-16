@@ -33,6 +33,18 @@
       {
         "command": "arduint.runLexer",
         "title": "Arduino Interpreter: Run Lexer & Print Tokens"
+      },
+      {
+        "command": "arduint.runProgram",
+        "title": "Arduino Interpreter: Run program"
+      },
+      {
+        "command": "arduint.debugProgram",
+        "title": "Arduino Interpreter: Debug program"
+      },
+      {
+        "command": "arduint.stopProgram",
+        "title": "Arduino Interpreter: Stop program"
       }
     ],
     "keybindings": [
@@ -40,6 +52,21 @@
         "command": "arduint.runLexer",
         "key": "ctrl+alt+l",
         "when": "editorTextFocus"
+      },
+      {
+        "command": "arduint.runProgram",
+        "key": "ctrl+alt+r",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "arduint.debugProgram",
+        "key": "ctrl+alt+d",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "arduint.stopProgram",
+        "key": "ctrl+c",
+        "when": "(editorTextFocus || outputFocus) && arduint.programRunning"
       }
     ]
   },
